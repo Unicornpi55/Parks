@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 import { ChevronDown, Mountain, AlertTriangle, MapPin, Compass, Users, Star, Search, X, Heart, Eye, BarChart3, GitCompare, Calendar, Snowflake, Sun, Leaf, Flower2, Shield, Signal, Droplets, Tent, PawPrint, Map, Download, Target, Skull, Info } from 'lucide-react';
 
 // Comprehensive data for all 63 US National Parks
@@ -302,7 +303,8 @@ const CompareRadarChart = ({ parks, size = 300 }) => {
   );
 };
 
-// US Map Component with proper geography
+const geoUrl = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+
 const USMap = ({ parks, onParkClick, onParkHover, hoveredPark }) => {
   const tierColors = {
     'Extreme': '#e85d64',
@@ -310,189 +312,95 @@ const USMap = ({ parks, onParkClick, onParkHover, hoveredPark }) => {
     'Moderate': '#a3b18a',
     'Easy': '#7c9a6c'
   };
-  
-  // Albers USA-like projection for continental US
-  const projectPoint = (lat, lng) => {
-    // Continental US bounds: lat 24-50, lng -125 to -66
-    const x = ((lng + 125) / 59) * 650 + 50;
-    const y = ((50 - lat) / 26) * 350 + 30;
-    return { x, y };
-  };
-  
-  // Separate parks by region for special handling
-  const continentalParks = parks.filter(p => !['AK', 'HI', 'AS', 'VI'].includes(p.state));
-  const alaskaParks = parks.filter(p => p.state === 'AK');
-  const hawaiiParks = parks.filter(p => p.state === 'HI');
-  const pacificParks = parks.filter(p => ['AS', 'VI'].includes(p.state));
-  
-  // Alaska inset position
-  const alaskaProject = (lat, lng, idx) => {
-    const baseX = 80;
-    const baseY = 340;
-    const col = idx % 4;
-    const row = Math.floor(idx / 4);
-    return { x: baseX + col * 35, y: baseY + row * 30 };
-  };
-  
-  // Hawaii inset position  
-  const hawaiiProject = (lat, lng, idx) => {
-    return { x: 220 + idx * 50, y: 385 };
-  };
-  
-  // Pacific territories
-  const pacificProject = (idx) => {
-    return { x: 340 + idx * 50, y: 385 };
-  };
 
   return (
     <div className="map-container">
-      <svg viewBox="0 0 800 450" className="us-map">
-        {/* Background */}
-        <rect x="0" y="0" width="800" height="450" fill="#1a1a1a"/>
+      <ComposableMap
+        projection="geoAlbersUsa"
+        projectionConfig={{
+          scale: 1000,
+        }}
+        width={800}
+        height={500}
+        style={{
+          width: '100%',
+          height: 'auto',
+        }}
+      >
+        <Geographies geography={geoUrl}>
+          {({ geographies }) =>
+            geographies.map((geo) => (
+              <Geography
+                key={geo.rsmKey}
+                geography={geo}
+                fill="#252525"
+                stroke="#333"
+                strokeWidth={0.5}
+                style={{
+                  default: { outline: 'none' },
+                  hover: { outline: 'none', fill: '#2a2a2a' },
+                  pressed: { outline: 'none' },
+                }}
+              />
+            ))
+          }
+        </Geographies>
         
-        {/* Continental US outline - simplified */}
-        <path d="M 50,120 L 120,100 L 200,95 L 280,90 L 360,85 L 420,80 L 500,75 L 580,80 L 650,100 L 700,140 L 700,180 L 690,220 L 680,260 L 660,300 L 620,340 L 560,360 L 500,365 L 440,350 L 400,340 L 350,350 L 300,380 L 250,370 L 200,350 L 150,320 L 100,280 L 70,240 L 55,200 L 50,160 Z" 
-              fill="#252525" stroke="#333" strokeWidth="1"/>
-        
-        {/* Florida */}
-        <path d="M 560,340 L 580,360 L 600,390 L 590,410 L 570,400 L 560,370 Z" 
-              fill="#252525" stroke="#333" strokeWidth="1"/>
-        
-        {/* Alaska inset box */}
-        <rect x="30" y="310" width="160" height="130" fill="#1e1e1e" stroke="#333" strokeWidth="1" rx="4"/>
-        <text x="110" y="328" textAnchor="middle" fill="#666" fontSize="10">ALASKA</text>
-        
-        {/* Hawaii/Pacific inset box */}
-        <rect x="200" y="360" width="220" height="80" fill="#1e1e1e" stroke="#333" strokeWidth="1" rx="4"/>
-        <text x="260" y="378" textAnchor="middle" fill="#666" fontSize="10">HAWAII & PACIFIC</text>
-        
-        {/* Continental parks */}
-        {continentalParks.map(park => {
-          const pos = projectPoint(park.lat, park.lng);
+        {parks.map((park) => {
           const isHovered = hoveredPark === park.name;
           return (
-            <g key={park.name}>
+            <Marker
+              key={park.name}
+              coordinates={[park.lng, park.lat]}
+              onMouseEnter={() => onParkHover(park.name)}
+              onMouseLeave={() => onParkHover(null)}
+              onClick={() => onParkClick(park)}
+              style={{ cursor: 'pointer' }}
+            >
               <circle
-                cx={pos.x}
-                cy={pos.y}
-                r={isHovered ? 8 : 5}
+                r={isHovered ? 6 : 4}
                 fill={tierColors[park.tier]}
                 stroke={isHovered ? '#fff' : '#1a1a1a'}
-                strokeWidth={isHovered ? 2 : 1}
-                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                onClick={() => onParkClick(park)}
-                onMouseEnter={() => onParkHover(park.name)}
-                onMouseLeave={() => onParkHover(null)}
+                strokeWidth={isHovered ? 1.5 : 0.5}
+                style={{
+                  transition: 'all 0.2s ease',
+                }}
               />
               {isHovered && (
-                <text x={pos.x} y={pos.y - 12} textAnchor="middle" fill="#fff" fontSize="10" fontWeight="600">
+                <text
+                  textAnchor="middle"
+                  y={-10}
+                  style={{
+                    fontFamily: 'Outfit, sans-serif',
+                    fontSize: '8px',
+                    fill: '#fff',
+                    fontWeight: 600,
+                    pointerEvents: 'none',
+                  }}
+                >
                   {park.name}
                 </text>
               )}
-            </g>
+            </Marker>
           );
         })}
-        
-        {/* Alaska parks */}
-        {alaskaParks.map((park, idx) => {
-          const pos = alaskaProject(park.lat, park.lng, idx);
-          const isHovered = hoveredPark === park.name;
-          return (
-            <g key={park.name}>
-              <circle
-                cx={pos.x}
-                cy={pos.y}
-                r={isHovered ? 7 : 4}
-                fill={tierColors[park.tier]}
-                stroke={isHovered ? '#fff' : '#1e1e1e'}
-                strokeWidth={isHovered ? 2 : 1}
-                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                onClick={() => onParkClick(park)}
-                onMouseEnter={() => onParkHover(park.name)}
-                onMouseLeave={() => onParkHover(null)}
-              />
-              {isHovered && (
-                <text x={pos.x} y={pos.y - 10} textAnchor="middle" fill="#fff" fontSize="9" fontWeight="600">
-                  {park.name}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        
-        {/* Hawaii parks */}
-        {hawaiiParks.map((park, idx) => {
-          const pos = hawaiiProject(park.lat, park.lng, idx);
-          const isHovered = hoveredPark === park.name;
-          return (
-            <g key={park.name}>
-              <circle
-                cx={pos.x}
-                cy={pos.y}
-                r={isHovered ? 7 : 4}
-                fill={tierColors[park.tier]}
-                stroke={isHovered ? '#fff' : '#1e1e1e'}
-                strokeWidth={isHovered ? 2 : 1}
-                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                onClick={() => onParkClick(park)}
-                onMouseEnter={() => onParkHover(park.name)}
-                onMouseLeave={() => onParkHover(null)}
-              />
-              {isHovered && (
-                <text x={pos.x} y={pos.y - 10} textAnchor="middle" fill="#fff" fontSize="9" fontWeight="600">
-                  {park.name}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        
-        {/* Pacific territories */}
-        {pacificParks.map((park, idx) => {
-          const pos = pacificProject(idx);
-          const isHovered = hoveredPark === park.name;
-          return (
-            <g key={park.name}>
-              <circle
-                cx={pos.x}
-                cy={pos.y}
-                r={isHovered ? 7 : 4}
-                fill={tierColors[park.tier]}
-                stroke={isHovered ? '#fff' : '#1e1e1e'}
-                strokeWidth={isHovered ? 2 : 1}
-                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                onClick={() => onParkClick(park)}
-                onMouseEnter={() => onParkHover(park.name)}
-                onMouseLeave={() => onParkHover(null)}
-              />
-              {isHovered && (
-                <text x={pos.x} y={pos.y - 10} textAnchor="middle" fill="#fff" fontSize="9" fontWeight="600">
-                  {park.name}
-                </text>
-              )}
-            </g>
-          );
-        })}
-        
-        {/* Legend */}
-        <g transform="translate(620, 320)">
-          <text x="0" y="0" fill="#888" fontSize="10" fontWeight="600">DIFFICULTY TIER</text>
-          {Object.entries(tierColors).map(([tier, color], idx) => (
-            <g key={tier} transform={`translate(0, ${15 + idx * 18})`}>
-              <circle cx="6" cy="0" r="5" fill={color}/>
-              <text x="18" y="4" fill="#888" fontSize="10">{tier}</text>
-            </g>
-          ))}
-        </g>
-        
-        {/* Stats */}
-        <g transform="translate(620, 30)">
-          <text x="0" y="0" fill="#7c9a6c" fontSize="24" fontWeight="700">{parks.length}</text>
-          <text x="0" y="18" fill="#888" fontSize="10">National Parks</text>
-        </g>
-      </svg>
+      </ComposableMap>
       
-      {/* Hover tooltip */}
+      <div className="map-legend">
+        <div className="legend-title">DIFFICULTY TIER</div>
+        {Object.entries(tierColors).map(([tier, color]) => (
+          <div key={tier} className="legend-item-row">
+            <div className="legend-dot" style={{ backgroundColor: color }} />
+            <span>{tier}</span>
+          </div>
+        ))}
+      </div>
+      
+      <div className="map-stats-overlay">
+        <div className="stat-number">{parks.length}</div>
+        <div className="stat-label">National Parks</div>
+      </div>
+      
       {hoveredPark && (() => {
         const park = parks.find(p => p.name === hoveredPark);
         if (!park) return null;
@@ -1562,67 +1470,81 @@ export default function NationalParksDashboard() {
           letter-spacing: 0.5px;
         }
         
+        /* Update existing .map-container or add if missing */
         .map-container {
           position: relative;
+          background: #1e1e1e;
+          border-radius: 12px;
+          border: 1px solid #2a2a2a;
+          overflow: hidden;
           padding: 20px;
         }
-        
-        .us-map {
-          width: 100%;
-          height: auto;
-          max-height: 500px;
-        }
-        
-        .map-tooltip {
+
+        /* Add these new styles for legend positioning */
+        .map-legend {
           position: absolute;
           bottom: 30px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: #2a2a2a;
-          border: 1px solid #444;
+          right: 30px;
+          background: rgba(30, 30, 30, 0.95);
+          border: 1px solid #333;
           border-radius: 8px;
           padding: 12px 16px;
-          pointer-events: none;
-          z-index: 100;
-          min-width: 200px;
+          backdrop-filter: blur(4px);
         }
-        
-        .tooltip-name {
-          font-weight: 700;
-          font-size: 14px;
-          margin-bottom: 4px;
-        }
-        
-        .tooltip-location {
+
+        .legend-title {
+          font-size: 10px;
+          font-weight: 600;
           color: #888;
-          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
           margin-bottom: 8px;
         }
-        
-        .tooltip-stats {
-          display: flex;
-          gap: 8px;
-          font-size: 11px;
-          color: #aaa;
-        }
-        
-        .tooltip-tier {
-          font-weight: 600;
-        }
-        
-        .map-footer {
-          padding: 12px 24px;
-          border-top: 1px solid #2a2a2a;
-          display: flex;
-          justify-content: center;
-        }
-        
-        .data-source {
+
+        .legend-item-row {
           display: flex;
           align-items: center;
           gap: 8px;
-          color: #666;
-          font-size: 12px;
+          margin-bottom: 6px;
+          font-size: 11px;
+          color: #e8e4de;
+        }
+
+        .legend-item-row:last-child {
+          margin-bottom: 0;
+        }
+
+        .legend-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+        }
+
+        .map-stats-overlay {
+          position: absolute;
+          top: 30px;
+          right: 30px;
+          text-align: center;
+          background: rgba(30, 30, 30, 0.95);
+          border: 1px solid #333;
+          border-radius: 8px;
+          padding: 12px 20px;
+          backdrop-filter: blur(4px);
+        }
+
+        .stat-number {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 32px;
+          font-weight: 700;
+          color: #7c9a6c;
+        }
+
+        .stat-label {
+          font-size: 10px;
+          color: #888;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-top: 4px;
         }
       `}</style>
 
